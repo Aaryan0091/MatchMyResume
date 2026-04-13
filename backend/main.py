@@ -101,15 +101,28 @@ async def analyze_resume_endpoint(
                 detail="PDF file appears to be empty or corrupted."
             )
 
+        # DEBUG: Log the job description received
+        print(f"\n{'='*60}")
+        print(f"NEW ANALYSIS REQUEST")
+        print(f"{'='*60}")
+        print(f"Resume File: {resume.filename}")
+        print(f"Job Description (first 200 chars): {job_description[:200]}...")
+        print(f"Job Description Length: {len(job_description)} chars")
+        print(f"{'='*60}\n")
+
         # Run NLP analysis pipeline
         analysis_result = analyze_resume(pdf_bytes, job_description)
 
-        # Prepare response
+        # Prepare response with enhanced analysis
         response = {
             "match_score": analysis_result["match_score"],
             "matched_skills": analysis_result["matched_skills"],
             "missing_skills": analysis_result["missing_skills"],
             "suggestions": analysis_result["suggestions"],
+            "experience_analysis": analysis_result.get("experience_analysis", {}),
+            "skill_depth_analysis": analysis_result.get("skill_depth_analysis", {}),
+            "soft_skills": analysis_result.get("soft_skills", {}),
+            "confidence_level": analysis_result.get("confidence_level", "low"),
             "resume_name": resume.filename,
             "timestamp": datetime.now().isoformat()
         }

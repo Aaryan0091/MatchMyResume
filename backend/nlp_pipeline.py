@@ -5,7 +5,7 @@ This module contains the entire NLP processing logic for resume and job descript
 
 import io
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import pdfplumber
 import nltk
 from nltk.corpus import stopwords
@@ -164,6 +164,215 @@ def extract_skills(text: str) -> List[str]:
     unique_skills = list(dict.fromkeys(all_skills))
 
     return unique_skills
+
+
+def extract_experience_level(text: str) -> Dict[str, any]:
+    """
+    Extract experience level indicators from text.
+    Returns estimated years of experience, seniority level, and confidence.
+
+    Args:
+        text: Resume or job description text
+
+    Returns:
+        Dictionary with experience level information
+    """
+    text_lower = text.lower()
+
+    # Extract years of experience
+    years_patterns = [
+        r'(\d+)\+?\s*years?\s*(?:of\s*)?(?:experience|work)',
+        r'experience:\s*(\d+)\+?\s*years?',
+        r'worked\s*for\s*(\d+)\+?\s*years?',
+        r'(\d+)\s*years?\s*(?:professional|total)?\s*experience',
+    ]
+
+    years_of_experience = None
+    for pattern in years_patterns:
+        match = re.search(pattern, text_lower)
+        if match:
+            years_of_experience = int(match.group(1))
+            break
+
+    # Determine seniority level from titles and descriptions
+    seniority_keywords = {
+        'executive': ['ceo', 'cto', 'cfo', 'chief', 'executive', 'vp', 'vice president'],
+        'senior': ['senior', 'lead', 'principal', 'staff', 'architect', 'head of'],
+        'mid': ['mid-level', 'midlevel', 'experienced', 'software engineer ii', 'engineer ii'],
+        'junior': ['junior', 'entry', 'entry-level', 'associate', 'intern', 'trainee']
+    }
+
+    detected_seniority = None
+    seniority_scores = {'executive': 4, 'senior': 3, 'mid': 2, 'junior': 1}
+
+    for level, keywords in seniority_keywords.items():
+        for keyword in keywords:
+            if keyword in text_lower:
+                # More specific patterns get priority
+                if f'{keyword} ' in text_lower or f' {keyword}' in text_lower:
+                    detected_seniority = level
+                    break
+        if detected_seniority:
+            break
+
+    # Infer seniority from years if not explicitly stated
+    if not detected_seniority and years_of_experience:
+        if years_of_experience >= 10:
+            detected_seniority = 'senior'
+        elif years_of_experience >= 5:
+            detected_seniority = 'mid'
+        elif years_of_experience >= 1:
+            detected_seniority = 'junior'
+
+    # Look for quantified achievements (indicates stronger experience)
+    achievement_patterns = [
+        r'increased\s+\w+\s+by\s+\d+%',
+        r'reduced\s+\w+\s+by\s+\d+%',
+        r'managed\s+\d+\s+people',
+        r'led\s+a\s+team\s+of\s+\d+',
+        r'built\s+\w+\s+from\s+scratch',
+        r'deployed\s+to\s+\d+\s+users',
+        r'saved\s+\$\d+',
+        r'\$\d+\s+budget',
+    ]
+
+    achievement_count = sum(1 for pattern in achievement_patterns if re.search(pattern, text_lower))
+
+    return {
+        'years_of_experience': years_of_experience,
+        'seniority_level': detected_seniority,
+        'seniority_score': seniority_scores.get(detected_seniority, 0),
+        'achievement_count': achievement_count,
+        'has_quantified_achievements': achievement_count >= 3
+    }
+
+
+def analyze_skill_depth(text: str, skills: List[str]) -> Dict[str, int]:
+    """
+    Analyze how extensively each skill is mentioned in the text.
+    Returns a dictionary mapping each skill to a depth score (1-5).
+
+    Args:
+        text: Resume text to analyze
+        skills: List of skills to analyze
+
+    Returns:
+        Dictionary with skill depth scores
+    """
+    text_lower = text.lower()
+    skill_depth = {}
+
+    for skill in skills:
+        skill_lower = skill.lower()
+
+        # Count occurrences
+        count = text_lower.count(skill_lower)
+
+        # Check for context indicators of depth
+        context_patterns = {
+            5: [r'expert\s+in', r'specialist\s+in', r'architect', r'led.*team'],
+            4: [r'senior.*developer', r'years?\s*of.*experience', r'proficient\s+in'],
+            3: [r'experience\s+with', r'worked\s+with', r'used.*for', r'built.*using'],
+            2: [r'familiar\s+with', r'knowledge\s+of', r'understanding\s+of'],
+            1: [r'learning', r'interested\s+in', r'want\s+to\s+learn']
+        }
+
+        depth_score = 1  # Default: minimal depth
+
+        # Check context patterns (higher patterns override lower)
+        for depth, patterns in context_patterns.items():
+            for pattern in patterns:
+                if re.search(pattern, text_lower):
+                    depth_score = max(depth_score, depth)
+                    break
+
+        # Adjust based on count
+        if count >= 5:
+            depth_score = max(depth_score, 4)
+        elif count >= 3:
+            depth_score = max(depth_score, 3)
+        elif count >= 2:
+            depth_score = max(depth_score, 2)
+
+        skill_depth[skill] = min(5, depth_score)
+
+    return skill_depth
+
+
+def extract_soft_skills(text: str) -> Dict[str, List[str]]:
+    """
+    Extract soft skills indicators from text.
+    Returns categorized soft skills with evidence.
+
+    Args:
+        text: Resume or job description text
+
+    Returns:
+        Dictionary with soft skill categories and detected skills
+    """
+    text_lower = text.lower()
+
+    soft_skills = {
+        'leadership': ['led', 'managed', 'supervised', 'directed', 'head of', 'team lead',
+                      'mentor', 'coached', 'guided', 'oversaw', 'responsible for'],
+        'communication': ['presented', 'communicated', 'collaborated', 'coordinated',
+                         'negotiated', 'interfaced', 'liaised', 'explained', 'documented'],
+        'problem_solving': ['solved', 'resolved', 'troubleshooted', 'fixed', 'debugged',
+                            'optimized', 'improved', 'streamlined', 'reduced', 'increased'],
+        'teamwork': ['collaborated', 'team', 'cooperated', 'worked with', 'paired',
+                    'cross-functional', 'agile', 'scrum', 'sprint'],
+        'initiative': ['initiated', 'proposed', 'created', 'founded', 'launched',
+                      'developed', 'implemented', 'introduced', 'pioneered'],
+        'adaptability': ['adapted', 'learned', 'mastered', 'quickly', 'fast learner',
+                        'versatile', 'flexible', 'pivoted']
+    }
+
+    detected = {category: [] for category in soft_skills}
+
+    for category, keywords in soft_skills.items():
+        for keyword in keywords:
+            # Look for the keyword as a whole word
+            pattern = r'\b' + re.escape(keyword) + r'\b'
+            if re.search(pattern, text_lower):
+                detected[category].append(keyword)
+
+    # Remove duplicates
+    for category in detected:
+        detected[category] = list(set(detected[category]))
+
+    return detected
+
+
+def check_experience_match(resume_exp: Dict, jd_exp: Dict) -> float:
+    """
+    Calculate how well the candidate's experience matches job requirements.
+    Returns a score between 0 and 1.
+
+    Args:
+        resume_exp: Experience level extracted from resume
+        jd_exp: Experience level extracted from job description
+
+    Returns:
+        Experience match score (0-1)
+    """
+    if not jd_exp['seniority_level'] or not resume_exp['seniority_level']:
+        return 0.5  # Neutral if can't determine
+
+    resume_score = resume_exp['seniority_score']
+    jd_score = jd_exp['seniority_score']
+
+    # Perfect match or one level higher is ideal
+    if resume_score >= jd_score:
+        return 1.0 if resume_score == jd_score else 0.9
+    # One level lower is okay but not ideal
+    elif resume_score == jd_score - 1:
+        return 0.7
+    # Two levels lower is concerning
+    elif resume_score == jd_score - 2:
+        return 0.3
+    # More than two levels lower is a mismatch
+    else:
+        return 0.1
 
 
 def compute_similarity_score(resume_text: str, job_description_text: str) -> int:
@@ -344,7 +553,8 @@ def analyze_resume(
     job_description: str
 ) -> Dict:
     """
-    Main pipeline function that runs the complete resume analysis.
+    Enhanced main pipeline function that runs comprehensive resume analysis.
+    Now includes experience level matching, skill depth analysis, and soft skills.
 
     Args:
         resume_pdf_bytes: Raw bytes of the resume PDF file
@@ -356,8 +566,12 @@ def analyze_resume(
         - matched_skills: List[str]
         - missing_skills: List[str]
         - suggestions: List[str]
-        - resume_entities: Dict[str, List[str]] (extracted entities from resume)
-        - jd_entities: Dict[str, List[str]] (extracted entities from JD)
+        - resume_entities: Dict[str, List[str]]
+        - jd_entities: Dict[str, List[str]]
+        - experience_analysis: Dict with experience level info
+        - skill_depth_analysis: Dict with skill depth scores
+        - soft_skills: Dict with soft skill categories
+        - confidence_level: str (low, medium, high)
     """
     # Step 1: Extract text from PDF
     resume_raw_text = extract_text_from_pdf(resume_pdf_bytes)
@@ -366,58 +580,204 @@ def analyze_resume(
         raise ValueError("Unable to extract text from the uploaded PDF. Please ensure it's a valid PDF file.")
 
     # Step 2: Clean both texts
-    resume_cleaned = clean_text(resume_raw_text)
     jd_cleaned = clean_text(job_description)
 
     if not jd_cleaned:
         raise ValueError("Job description cannot be empty. Please provide a valid job description.")
 
     # Step 3: Extract skills from both texts
-    resume_skills = extract_skills(resume_raw_text)  # Use raw text for skill extraction
+    resume_skills = extract_skills(resume_raw_text)
     jd_skills = extract_skills(job_description)
 
-    # Step 4: Compute similarity score using hybrid approach
-    # Combine TF-IDF similarity with skill overlap percentage
-    # Use raw text for TF-IDF for better semantic matching
-    tfidf_score = compute_similarity_score(resume_raw_text, job_description)
+    # Step 4: Extract experience levels
+    resume_experience = extract_experience_level(resume_raw_text)
+    jd_experience = extract_experience_level(job_description)
 
-    # Calculate skill overlap score
+    # Step 5: Analyze skill depth
+    resume_skill_depth = analyze_skill_depth(resume_raw_text, resume_skills)
+
+    # Step 6: Extract soft skills
+    resume_soft_skills = extract_soft_skills(resume_raw_text)
+    jd_soft_skills = extract_soft_skills(job_description)
+
+    # Step 7: Calculate skill overlap with WEIGHTED and DEPTH-AWARE scoring
     matched_skills, missing_skills = analyze_skill_gap(jd_skills, resume_skills)
-    total_jd_skills = len(jd_skills) if jd_skills else 1
-    skill_overlap_score = (len(matched_skills) / total_jd_skills) * 100 if total_jd_skills > 0 else 0
 
-    # Hybrid score: 90% weight to skill overlap, 10% to TF-IDF
-    # This gives more weight to explicit skill matches while considering semantic similarity
-    match_score = int(round((skill_overlap_score * 0.9) + (tfidf_score * 0.1)))
+    def get_skill_weight(skill: str) -> float:
+        """Return weight for a skill based on its importance."""
+        skill_lower = skill.lower()
 
-    # Debug output
-    print(f"=== DEBUG ====")
+        # CRITICAL: Core programming languages - 3.0 weight
+        critical_keywords = [
+            'python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'go', 'rust',
+            'ruby', 'php', 'swift', 'kotlin', 'scala', 'r', 'matlab', 'sql'
+        ]
+        if any(lang in skill_lower for lang in critical_keywords):
+            return 3.0
+
+        # HIGH: Core frameworks and databases - 2.0 weight
+        high_keywords = [
+            'django', 'flask', 'fastapi', 'spring boot', 'spring', 'ruby on rails',
+            'rails', 'laravel', 'express', 'react', 'angular', 'vue', 'svelte',
+            'next.js', 'nuxt.js', 'postgresql', 'mongodb', 'mysql', 'redis',
+            'elasticsearch', 'cassandra', 'oracle'
+        ]
+        if any(hi in skill_lower for hi in high_keywords):
+            return 2.0
+
+        # MEDIUM: Specific technical tools - 1.0 weight
+        medium_keywords = [
+            'graphql', 'kafka', 'rabbitmq', 'spark', 'hadoop', 'tensorflow',
+            'pytorch', 'pandas', 'numpy', 'hibernate', 'jpa', 'entity framework',
+            'prisma', 'sequelize', 'typeorm', 'mongoose', 'docker', 'kubernetes'
+        ]
+        if any(med in skill_lower for med in medium_keywords):
+            return 1.0
+
+        # LOW: Generic infrastructure/tools - 0.5 weight
+        low_keywords = [
+            'git', 'github', 'gitlab', 'aws', 'azure', 'gcp', 'rest api', 'rest',
+            'webpack', 'vite', 'npm', 'yarn', 'maven', 'gradle', 'jenkins'
+        ]
+        if any(lo in skill_lower for lo in low_keywords):
+            return 0.5
+
+        return 1.0
+
+    # Calculate weighted scores with depth consideration
+    jd_weighted_total = 0
+    matched_weighted_total = 0
+
+    for skill in jd_skills:
+        skill_weight = get_skill_weight(skill)
+        jd_weighted_total += skill_weight
+
+    for skill in matched_skills:
+        skill_weight = get_skill_weight(skill)
+        # Adjust weight by skill depth (1-5 scale)
+        depth_multiplier = resume_skill_depth.get(skill, 1) / 2.5  # Normalize to 0.2-2.0 range
+        matched_weighted_total += skill_weight * depth_multiplier
+
+    # Calculate base weighted match percentage
+    base_score = (matched_weighted_total / jd_weighted_total * 100) if jd_weighted_total > 0 else 0
+
+    # Step 8: Calculate experience match score
+    experience_match_score = check_experience_match(resume_experience, jd_experience)
+
+    # Step 9: Calculate soft skills match
+    soft_skill_categories = ['leadership', 'communication', 'problem_solving', 'teamwork', 'initiative', 'adaptability']
+    soft_skill_matches = 0
+    soft_skill_total = 0
+
+    for category in soft_skill_categories:
+        if jd_soft_skills.get(category):  # JD requires this soft skill
+            soft_skill_total += 1
+            if resume_soft_skills.get(category):  # Candidate has it
+                soft_skill_matches += 1
+
+    soft_skill_match_ratio = soft_skill_matches / soft_skill_total if soft_skill_total > 0 else 0.5
+
+    # Step 10: Calculate FINAL COMPREHENSIVE SCORE
+    # Components:
+    # - Technical skills (depth-aware): 50% weight
+    # - Experience level match: 30% weight
+    # - Soft skills: 20% weight
+
+    if len(jd_skills) == 0 and len(jd_skills) == 0:
+        # No technical skills in JD - score based on experience/soft skills only
+        technical_score = 50  # Neutral baseline
+    elif len(matched_skills) == 0:
+        technical_score = 0
+    else:
+        # Apply skill ratio ranges with depth-aware scoring
+        skills_matched_ratio = len(matched_skills) / len(jd_skills)
+
+        if skills_matched_ratio == 1.0:
+            technical_score = 100
+        elif skills_matched_ratio >= 0.8:
+            technical_score = int(round(85 + (base_score * 0.15)))
+        elif skills_matched_ratio >= 0.5:
+            technical_score = int(round(50 + (base_score * 0.34)))
+        elif skills_matched_ratio >= 0.2:
+            technical_score = int(round(20 + (base_score * 0.30)))
+        else:
+            technical_score = int(round(10 + (base_score * 0.10)))
+
+        technical_score = max(0, min(100, technical_score))
+
+    # Apply depth penalty if skills are shallow
+    if matched_skills and len(matched_skills) > 0:
+        avg_depth = sum(resume_skill_depth.get(skill, 1) for skill in matched_skills) / len(matched_skills)
+        if avg_depth < 2.5:  # Skills are shallow
+            technical_score = int(technical_score * 0.8)  # 20% penalty
+        elif avg_depth < 3.5:  # Skills are moderate
+            technical_score = int(technical_score * 0.95)  # 5% penalty
+
+    # Calculate final composite score
+    final_score = (
+        (technical_score * 0.50) +
+        (experience_match_score * 100 * 0.30) +
+        (soft_skill_match_ratio * 100 * 0.20)
+    )
+    match_score = int(round(final_score))
+    match_score = max(0, min(100, match_score))
+
+    # Step 11: Determine confidence level
+    if resume_experience['has_quantified_achievements'] and len(matched_skills) >= 5:
+        confidence = 'high'
+    elif resume_experience['years_of_experience'] and len(matched_skills) >= 3:
+        confidence = 'medium'
+    else:
+        confidence = 'low'
+
+    # Debug output with enhanced information
+    print(f"=== ENHANCED DEBUG ====")
+    print(f"Job Description (first 150 chars): {job_description[:150]}")
+    print(f"\n--- SKILLS ---")
     print(f"JD Skills ({len(jd_skills)}): {jd_skills}")
-    print(f"Resume Skills ({len(resume_skills)}): {resume_skills}")
     print(f"Matched Skills ({len(matched_skills)}): {matched_skills}")
     print(f"Missing Skills ({len(missing_skills)}): {missing_skills}")
-    print(f"Skill Overlap: {skill_overlap_score:.1f}%")
-    print(f"TF-IDF Score: {tfidf_score:.1f}%")
-    print(f"Final Match Score: {match_score}%")
-    print(f"=== DEBUG ====")
+    print(f"Skill Depth Analysis:")
+    for skill, depth in list(resume_skill_depth.items())[:5]:
+        print(f"  {skill}: depth={depth}/5")
+    print(f"\n--- EXPERIENCE ---")
+    print(f"Resume: {resume_experience['seniority_level']} ({resume_experience['years_of_experience']} years)")
+    print(f"JD: {jd_experience['seniority_level']}")
+    print(f"Experience Match: {experience_match_score:.0%}")
+    print(f"\n--- SCORING ---")
+    print(f"Technical Score: {technical_score}%")
+    print(f"Experience Contribution: {experience_match_score * 100 * 0.30:.1f}%")
+    print(f"Soft Skills Contribution: {soft_skill_match_ratio * 100 * 0.20:.1f}%")
+    print(f"FINAL SCORE: {match_score}%")
+    print(f"Confidence Level: {confidence}")
+    print(f"=== ENHANCED DEBUG ====")
 
-    # Step 5: Analyze skill gap (already done above for scoring)
-
-    # Step 6: Extract entities using spaCy
+    # Step 12: Extract entities using spaCy
     resume_entities = extract_entities_with_spacy(resume_raw_text)
     jd_entities = extract_entities_with_spacy(job_description)
 
-    # Step 7: Generate suggestions
+    # Step 13: Generate suggestions
     suggestions = generate_suggestions(match_score, missing_skills, matched_skills)
 
-    # Return results
+    # Return comprehensive results
     return {
         "match_score": match_score,
         "matched_skills": matched_skills,
         "missing_skills": missing_skills,
         "suggestions": suggestions,
         "resume_entities": resume_entities,
-        "jd_entities": jd_entities
+        "jd_entities": jd_entities,
+        "experience_analysis": {
+            "resume": resume_experience,
+            "job": jd_experience,
+            "match_score": experience_match_score
+        },
+        "skill_depth_analysis": resume_skill_depth,
+        "soft_skills": {
+            "resume": resume_soft_skills,
+            "job": jd_soft_skills
+        },
+        "confidence_level": confidence
     }
 
 
