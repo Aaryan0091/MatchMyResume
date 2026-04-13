@@ -3,6 +3,53 @@
  */
 
 /**
+ * Experience level information
+ */
+export interface ExperienceInfo {
+  years_of_experience: number | null;
+  seniority_level: string | null;
+  seniority_score: number;
+  achievement_count: number;
+  has_quantified_achievements: boolean;
+}
+
+/**
+ * Soft skills by category
+ */
+export interface SoftSkills {
+  leadership: string[];
+  communication: string[];
+  problem_solving: string[];
+  teamwork: string[];
+  initiative: string[];
+  adaptability: string[];
+}
+
+/**
+ * Experience analysis comparing resume to job
+ */
+export interface ExperienceAnalysis {
+  resume: ExperienceInfo;
+  job: ExperienceInfo;
+  match_score: number;
+}
+
+/**
+ * Skill depth scores (1-5)
+ */
+export interface SkillDepthAnalysis {
+  [skill: string]: number;
+}
+
+/**
+ * Soft skills analysis
+ */
+export interface SoftSkillsAnalysis {
+  resume: SoftSkills;
+  job: SoftSkills;
+}
+
+/**
  * Analysis result returned from the backend API
  */
 export interface AnalysisResult {
@@ -12,6 +59,10 @@ export interface AnalysisResult {
   suggestions: string[];
   resume_name: string;
   timestamp: string;
+  experience_analysis: ExperienceAnalysis;
+  skill_depth_analysis: SkillDepthAnalysis;
+  soft_skills: SoftSkillsAnalysis;
+  confidence_level: 'low' | 'medium' | 'high';
 }
 
 /**

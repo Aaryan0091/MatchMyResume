@@ -102,28 +102,38 @@ const Home: React.FC = () => {
                 className="text-center mb-16 relative"
               >
                 <h2 className="text-4xl md:text-6xl font-semibold tracking-tight mb-5 leading-tight text-white flex flex-col items-center justify-center">
-                  <span>Unlock your next</span>
-                  <motion.span 
+                  <span>AI-Powered Resume</span>
+                  <motion.span
                     className="cursor-pointer relative inline-block mt-2 text-white/90"
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    transition={{ 
+                    transition={{
                       duration: 0.4,
                       ease: "easeOut",
-                      delay: 0.1 
+                      delay: 0.1
                     }}
-                    whileHover={{ 
+                    whileHover={{
                       scale: 1.02,
                       color: "#fff"
                     }}
                     whileTap={{ scale: 1.05 }}
                   >
-                    Career Move
+                    Screening Tool
                   </motion.span>
                 </h2>
-                <p className="text-base md:text-lg text-neutral-400 max-w-2xl mx-auto mb-8 font-light leading-relaxed">
-                  Upload your resume and paste a job description. We calculate your match score and provide actionable feedback.
+                <p className="text-base md:text-lg text-neutral-400 max-w-2xl mx-auto mb-6 font-light leading-relaxed">
+                  Get a preliminary analysis of how your resume aligns with job requirements.
+                  We analyze technical skills, experience level, skill depth, and soft skills.
                 </p>
+
+                {/* Disclaimer Banner */}
+                <div className="max-w-3xl mx-auto bg-neutral-800/50 border border-neutral-700/50 rounded-xl p-4 mb-6">
+                  <p className="text-xs text-neutral-400 leading-relaxed">
+                    <span className="font-semibold text-neutral-300">⚠️ Important:</span> This is a preliminary screening tool based on keyword matching, experience analysis, and skill depth.
+                    Scores are estimates, not definitive assessments. A low score doesn't mean you're not qualified, and a high score doesn't guarantee you'll get the job.
+                    Always review the full job description and trust your own judgment. Human review is required for hiring decisions.
+                  </p>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -218,6 +228,88 @@ const Home: React.FC = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Footer with comprehensive disclaimer */}
+      <footer className="relative z-10 border-t border-neutral-800/50 bg-[#0a0a0a]/50 backdrop-blur-sm mt-20">
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            {/* What This Tool Does */}
+            <div>
+              <h4 className="text-white font-semibold mb-3">What This Tool Does</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 mt-0.5">✓</span>
+                  <span>Identifies technical skills from resume and job description</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 mt-0.5">✓</span>
+                  <span>Calculates match score with skill depth weighting</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 mt-0.5">✓</span>
+                  <span>Analyzes experience level and seniority match</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 mt-0.5">✓</span>
+                  <span>Detects soft skills and achievements</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* What This Tool Does NOT Do */}
+            <div>
+              <h4 className="text-white font-semibold mb-3">What This Tool Does NOT Do</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li className="flex items-start gap-2">
+                  <span className="text-orange-400 mt-0.5">✗</span>
+                  <span>Verify actual proficiency or experience level</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-orange-400 mt-0.5">✗</span>
+                  <span>Assess cultural fit or interview performance</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-orange-400 mt-0.5">✗</span>
+                  <span>Guarantee you will (or won't) get the job</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-orange-400 mt-0.5">✗</span>
+                  <span>Replace human judgment in hiring decisions</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* How to Use Results */}
+            <div>
+              <h4 className="text-white font-semibold mb-3">How to Use Your Results</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 mt-0.5">→</span>
+                  <span><strong className="text-slate-300">High Score (80%+):</strong> Skills align well, but verify experience level matches requirements</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 mt-0.5">→</span>
+                  <span><strong className="text-slate-300">Medium Score (50-79%):</strong> Some required skills, consider highlighting relevant experience</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 mt-0.5">→</span>
+                  <span><strong className="text-slate-300">Low Score (0-49%):</strong> Skills don't align, but you may have transferable skills not captured</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Important Notice */}
+          <div className="border-t border-neutral-800 pt-6">
+            <p className="text-center text-xs text-slate-500 leading-relaxed">
+              <strong className="text-slate-400">⚠️ Important:</strong> This is a preliminary screening tool based on keyword matching, experience analysis, and skill depth.
+              Scores are estimates, not definitive assessments. A low score doesn't mean you're not qualified, and a high score doesn't guarantee you'll get the job.
+              Always read the full job description and company information. Use this as one data point, not the whole story.
+              Trust your judgment about whether a role is right for you. This is a starting point for your job search, not a definitive assessment.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
