@@ -9,6 +9,9 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ result, isAnalyzing
   if (isAnalyzing) return null;
   if (!result) return null;
 
+  // Log result for debugging
+  console.log('ResultsDashboard received:', result);
+
   const getScoreDescription = (score: number) => {
     if (score >= 80) return { label: 'Excellent Match', color: 'text-emerald-400', bgColor: 'bg-emerald-500/10' };
     if (score >= 60) return { label: 'Good Match', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' };
@@ -72,9 +75,14 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ result, isAnalyzing
     return 'Learning';
   };
 
-  const { label, color } = getScoreDescription(result.match_score);
-  const confidence = getConfidenceInfo(result.confidence_level);
+  const { label, color } = getScoreDescription(result.match_score || 0);
+  const confidence = getConfidenceInfo(result.confidence_level || 'low');
   const ConfidenceIcon = confidence.icon;
+
+  // Add defensive checks for nested properties
+  const experienceAnalysis = result.experience_analysis || { resume: {}, job: {}, match_score: 0 };
+  const skillDepthAnalysis = result.skill_depth_analysis || {};
+  const softSkills = result.soft_skills || { resume: {} };
 
   const container = {
     hidden: { opacity: 0 },
@@ -154,10 +162,10 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ result, isAnalyzing
                 Matched Skills
               </h3>
               <span className="flex items-center justify-center bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-bold">
-                {result.matched_skills.length} FOUND
+                {(result.matched_skills || []).length} FOUND
               </span>
             </div>
-            {result.matched_skills.length > 0 ? (
+            {(result.matched_skills || []).length > 0 ? (
               <div className="flex flex-wrap gap-2.5">
                 {result.matched_skills.map((skill, index) => (
                   <SkillBadge key={index} skill={skill} type="matched" />
@@ -178,10 +186,10 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ result, isAnalyzing
                 Missing Skills
               </h3>
               <span className="flex items-center justify-center bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1 rounded-full text-xs font-bold">
-                {result.missing_skills.length} MISSING
+                {(result.missing_skills || []).length} MISSING
               </span>
             </div>
-            {result.missing_skills.length > 0 ? (
+            {(result.missing_skills || []).length > 0 ? (
               <div className="flex flex-wrap gap-2.5">
                 {result.missing_skills.map((skill, index) => (
                   <SkillBadge key={index} skill={skill} type="missing" />
@@ -230,14 +238,14 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ result, isAnalyzing
               <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
-                  style={{ width: `${(result.experience_analysis.match_score || 0) * 100}%` }}
+                  style={{ width: `${(experienceAnalysis.match_score || 0) * 100}%` }}
                 />
               </div>
-              <span className="text-xs font-semibold text-emerald-400">{Math.round((result.experience_analysis.match_score || 0) * 100)}%</span>
+              <span className="text-xs font-semibold text-emerald-400">{Math.round((experienceAnalysis.match_score || 0) * 100)}%</span>
             </div>
             <p className="text-xs text-slate-500 mt-2">
-              Resume: {result.experience_analysis.resume.seniority_level || 'Unknown'}
-              {' '}• Job: {result.experience_analysis.job.seniority_level || 'Unknown'}
+              Resume: {experienceAnalysis.resume?.seniority_level || 'Unknown'}
+              {' '}• Job: {experienceAnalysis.job?.seniority_level || 'Unknown'}
             </p>
           </div>
           <div className="bg-dark-800/50 rounded-xl p-4 border border-white/5">
@@ -270,27 +278,27 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ result, isAnalyzing
             <div className="flex items-center justify-between p-3 bg-dark-800/50 rounded-lg border border-white/5">
               <span className="text-sm text-slate-400">Your Level</span>
               <span className="font-semibold text-white">
-                {result.experience_analysis.resume.seniority_level || 'Unknown'}
-                {result.experience_analysis.resume.years_of_experience && ` (${result.experience_analysis.resume.years_of_experience} years)`}
+                {experienceAnalysis.resume?.seniority_level || 'Unknown'}
+                {experienceAnalysis.resume?.years_of_experience && ` (${experienceAnalysis.resume.years_of_experience} years)`}
               </span>
             </div>
             <div className="flex items-center justify-between p-3 bg-dark-800/50 rounded-lg border border-white/5">
               <span className="text-sm text-slate-400">Job Requirement</span>
               <span className="font-semibold text-white">
-                {result.experience_analysis.job.seniority_level || 'Unknown'}
+                {experienceAnalysis.job?.seniority_level || 'Unknown'}
               </span>
             </div>
             <div className="flex items-center justify-between p-3 bg-dark-800/50 rounded-lg border border-white/5">
               <span className="text-sm text-slate-400">Experience Match</span>
-              <span className={`font-semibold ${result.experience_analysis.match_score >= 0.8 ? 'text-emerald-400' : result.experience_analysis.match_score >= 0.5 ? 'text-yellow-400' : 'text-orange-400'}`}>
-                {Math.round(result.experience_analysis.match_score * 100)}%
+              <span className={`font-semibold ${experienceAnalysis.match_score >= 0.8 ? 'text-emerald-400' : experienceAnalysis.match_score >= 0.5 ? 'text-yellow-400' : 'text-orange-400'}`}>
+                {Math.round(experienceAnalysis.match_score * 100)}%
               </span>
             </div>
-            {result.experience_analysis.resume.achievement_count > 0 && (
+            {experienceAnalysis.resume?.achievement_count > 0 && (
               <div className="p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/10">
                 <p className="text-sm text-emerald-400 flex items-center gap-2">
                   <Award size={14} />
-                  {result.experience_analysis.resume.achievement_count} quantified achievements detected
+                  {experienceAnalysis.resume.achievement_count} quantified achievements detected
                 </p>
               </div>
             )}
@@ -305,7 +313,7 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ result, isAnalyzing
           </h3>
           <p className="text-sm text-slate-400 mb-4">Depth score (1-5): 1=Learning, 2=Familiar, 3=Practical, 4=Proficient, 5=Expert</p>
           <div className="space-y-3 max-h-64 overflow-y-auto">
-            {Object.entries(result.skill_depth_analysis).slice(0, 8).map(([skill, depth]) => (
+            {Object.entries(skillDepthAnalysis).slice(0, 8).map(([skill, depth]) => (
               <div key={skill} className="flex items-center gap-3 p-2 bg-dark-800/50 rounded-lg border border-white/5">
                 <span className="flex-1 text-sm text-slate-300">{skill}</span>
                 <div className="flex items-center gap-2">
@@ -332,7 +340,7 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ result, isAnalyzing
           Soft Skills Detected
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(result.soft_skills.resume).map(([category, skills]) => (
+          {Object.entries(softSkills.resume || {}).map(([category, skills]) => (
             <div key={category} className="p-3 bg-dark-800/50 rounded-lg border border-white/5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-slate-300 capitalize">
@@ -372,7 +380,7 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ result, isAnalyzing
           Actionable Suggestions
         </h3>
 
-        {result.suggestions.length > 0 ? (
+        {(result.suggestions || []).length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
             {result.suggestions.map((suggestion, index) => (
               <motion.div

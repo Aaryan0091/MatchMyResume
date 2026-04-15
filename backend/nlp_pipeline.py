@@ -722,6 +722,20 @@ def analyze_resume(
     match_score = int(round(final_score))
     match_score = max(0, min(100, match_score))
 
+    # CRITICAL FIX: Never allow 100% if there are missing skills
+    if missing_skills and len(jd_skills) > 0:
+        # Calculate how many skills are missing as a percentage
+        missing_ratio = len(missing_skills) / len(jd_skills)
+        # Cap the maximum score based on missing skills
+        # If 20% of skills are missing, max score is 80%
+        # If 50% of skills are missing, max score is 50%
+        max_possible_score = int(round((1 - missing_ratio) * 100))
+        # Ensure the score doesn't exceed the max possible
+        match_score = min(match_score, max_possible_score)
+        # Also ensure at least some score is given (minimum 10% if any skills match)
+        if len(matched_skills) > 0:
+            match_score = max(match_score, 10)
+
     # Step 11: Determine confidence level
     if resume_experience['has_quantified_achievements'] and len(matched_skills) >= 5:
         confidence = 'high'

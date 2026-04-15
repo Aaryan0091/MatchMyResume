@@ -116,6 +116,7 @@ export interface HistoryTableProps {
   analyses: StoredAnalysis[];
   onSelectAnalysis: (analysis: StoredAnalysis) => void;
   isLoading: boolean;
+  isFirebaseBlocked?: boolean;
 }
 
 /**

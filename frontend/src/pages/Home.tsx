@@ -6,7 +6,7 @@ import ResultsDashboard from '../components/ResultsDashboard';
 import HistoryTable from '../components/HistoryTable';
 import Antigravity from '../components/Antigravity';
 import { analyzeResume } from '../api/analysis';
-import { getAnalyses } from '../api/supabase';
+import { getAnalyses, saveAnalysis } from '../api/firebase';
 import type { AnalysisResult, StoredAnalysis } from '../types';
 
 const Home: React.FC = () => {
@@ -15,6 +15,7 @@ const Home: React.FC = () => {
   const [currentResult, setCurrentResult] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<StoredAnalysis[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isFirebaseBlocked, setIsFirebaseBlocked] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'history') {
@@ -22,13 +23,27 @@ const Home: React.FC = () => {
     }
   }, [activeTab]);
 
+  // Listen for Firebase errors from ad blockers
+  useEffect(() => {
+    const handleFirebaseError = (event: any) => {
+      if (event.message?.includes('ERR_BLOCKED_BY_CLIENT') || event.message?.includes('firestore.googleapis.com')) {
+        setIsFirebaseBlocked(true);
+      }
+    };
+
+    window.addEventListener('error', handleFirebaseError);
+    return () => window.removeEventListener('error', handleFirebaseError);
+  }, []);
+
   const loadHistory = async () => {
     setIsHistoryLoading(true);
+    setIsFirebaseBlocked(false);
     try {
       const data = await getAnalyses();
       setHistory(data);
     } catch (error) {
       console.error('Failed to load history:', error);
+      setIsFirebaseBlocked(true);
     } finally {
       setIsHistoryLoading(false);
     }
@@ -39,6 +54,16 @@ const Home: React.FC = () => {
     try {
       const result = await analyzeResume({ resume: file, job_description: jobDescription });
       setCurrentResult(result);
+
+      // Save to Supabase
+      await saveAnalysis({
+        resume_name: result.resume_name,
+        match_score: result.match_score,
+        matched_skills: result.matched_skills,
+        missing_skills: result.missing_skills,
+        suggestions: result.suggestions,
+      });
+
       if (activeTab === 'history') {
         loadHistory();
       }
@@ -215,10 +240,11 @@ const Home: React.FC = () => {
                       transition={{ duration: 0.3 }}
                       className="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-sm overflow-hidden"
                     >
-                      <HistoryTable 
-                        analyses={history} 
+                      <HistoryTable
+                        analyses={history}
                         onSelectAnalysis={handleSelectAnalysis}
                         isLoading={isHistoryLoading}
+                        isFirebaseBlocked={isFirebaseBlocked}
                       />
                     </motion.div>
                   )}

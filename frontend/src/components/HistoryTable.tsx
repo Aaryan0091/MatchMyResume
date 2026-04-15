@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Clock, FileText, ArrowRight, Activity } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, FileText, ArrowRight, Activity, AlertCircle } from 'lucide-react';
 import type { HistoryTableProps } from '../types';
 
-const HistoryTable: React.FC<HistoryTableProps> = ({ analyses, onSelectAnalysis, isLoading }) => {
+const HistoryTable: React.FC<HistoryTableProps> = ({ analyses, onSelectAnalysis, isLoading, isFirebaseBlocked }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const getScoreColor = (score: number) => {
@@ -19,6 +19,18 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ analyses, onSelectAnalysis,
           <div className="w-12 h-12 rounded-full border-2 border-primary-500/30 border-t-primary-500 animate-spin mb-4"></div>
           <p className="text-sm font-medium text-slate-400">Loading history records...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (isFirebaseBlocked) {
+    return (
+      <div className="glass-card flex flex-col items-center justify-center relative overflow-hidden text-center py-24 rounded-2xl">
+        <AlertCircle size={48} className="text-orange-400 mb-6" />
+        <p className="text-xl font-medium text-slate-300">History Feature Blocked</p>
+        <p className="text-slate-500 mt-2 max-w-md mx-auto px-4">
+          Your ad blocker is blocking Firebase. Please disable it for this site or allow <code className="bg-dark-800 px-2 py-1 rounded text-orange-400">firestore.googleapis.com</code>
+        </p>
       </div>
     );
   }
